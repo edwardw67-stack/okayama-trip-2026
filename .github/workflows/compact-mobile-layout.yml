@@ -1,0 +1,41 @@
+name: Compact mobile layout
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch mobile layout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('mobile.html')
+          s = p.read_text()
+          s = s.replace(".app{max-width:720px;margin:auto;padding:10px 10px 40px}", ".app{max-width:720px;margin:auto;padding:8px 10px 36px}")
+          s = s.replace(".hero{background:linear-gradient(135deg,#476a99,#a9cedc);color:white;border-radius:28px;padding:20px;box-shadow:0 8px 24px #0002}", ".hero{background:linear-gradient(135deg,#476a99,#a9cedc);color:white;border-radius:22px;padding:14px;box-shadow:0 8px 24px #0002}")
+          s = s.replace(".tag{font-size:12px;font-weight:900;background:#ffffff26;border:1px solid #ffffff38;display:inline-block;padding:7px 10px;border-radius:999px}", ".tag{font-size:11px;font-weight:900;background:#ffffff26;border:1px solid #ffffff38;display:inline-block;padding:6px 9px;border-radius:999px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}")
+          s = s.replace("h1{font-size:30px;line-height:1.08;margin:12px 0 8px;letter-spacing:-.04em}", "h1{font-size:25px;line-height:1.08;margin:10px 0 6px;letter-spacing:-.04em}")
+          s = s.replace(".hero p{font-size:14px;line-height:1.55;margin:0;color:#ffffffe8}", ".hero p{font-size:13px;line-height:1.42;margin:0;color:#ffffffe8}")
+          s = s.replace(".hero-grid{display:grid;gap:8px;margin-top:14px}", ".hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}")
+          s = s.replace(".pill{background:#ffffff26;border:1px solid #ffffff30;border-radius:16px;padding:10px 12px;font-size:14px;font-weight:900;overflow-wrap:anywhere}", ".pill{background:#ffffff26;border:1px solid #ffffff30;border-radius:14px;padding:8px 9px;font-size:12px;font-weight:900;line-height:1.35;overflow-wrap:anywhere}")
+          s = s.replace("@media(min-width:680px){.hero-grid{grid-template-columns:repeat(2,1fr)}.nav{grid-template-columns:repeat(10,1fr)}}", "@media(min-width:680px){.hero-grid{grid-template-columns:repeat(4,1fr)}.nav{grid-template-columns:repeat(10,1fr)}}")
+          s = s.replace("<p>手機收折版。飯店訂單是一張卡，交通訂單也是一張卡；每一天都標出當晚入住飯店與預估時間。</p>", "<p>收折式行程卡。飯店、交通、每天行程都可展開查看。</p>")
+          s = s.replace("class=\"'+klass+'\" open>", "class=\"'+klass+'\">")
+          s = s.replace("'+(i==0?'open':'')+'", "")
+          p.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile.html
+          git commit -m "Compact mobile header and collapse cards by default" || exit 0
+          git push
