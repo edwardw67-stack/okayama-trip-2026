@@ -1,0 +1,106 @@
+name: Add helper cards
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add helper cards to mobile page
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('mobile.html')
+          s = p.read_text()
+
+          if 'const helperGroups=' not in s:
+              s = s.replace(
+                '<a href="#orders">飯店</a><a href="#traffic">交通</a><a href="#d1">D1</a>',
+                '<a href="#orders">飯店</a><a href="#traffic">交通</a><a href="#helpers">備案</a><a href="#sake">清酒</a><a href="#d1">D1</a>'
+              )
+              s = s.replace(
+                '<section id="groups"></section><div class="sec">每日行程卡</div><section id="days"></section>',
+                '<section id="groups"></section><div class="sec" id="helpers">旅途備用卡</div><section id="helperCards"></section><div class="sec" id="sake">當地清酒必喝清單</div><section id="sakeCards"></section><div class="sec">每日行程卡</div><section id="days"></section>'
+              )
+              insert = r"""
+const helperGroups=[
+  ['今日備案','臨時太累、太熱、行程爆掉時用。','不要硬跑遠點，優先選飯店附近、車站附近、室內點。','岡山駅'],
+  ['岡山市區備案','AEON MALL 岡山、杜之街 Grace、岡山站地下街都能救場。','下雨、太熱、老婆想休息或買東西，直接切這幾個點。','AEON MALL 岡山'],
+  ['倉敷備案','倉敷常春藤廣場、大原美術館、林源十郎商店。','天氣不好就少走河岸，多走室內與老屋商店。','倉敷常春藤廣場'],
+  ['姬路備案','姬路站周邊、Piole Himeji、姬路城周邊咖啡。','書寫山天氣爛就別硬上山，直接姬路市區慢玩。','Piole Himeji'],
+  ['瀨戶內海線備案','牛窗天氣差就縮短停留，早點回岡山市區。','鷲羽山如果陰天沒夕陽，就改兒島丹寧街多逛一點。','牛窓オリーブ園']
+];
+const rainGroups=[
+  ['雨天優先策略','先保飯店、餐廳、溫泉，不要為了拍照硬衝戶外。','雨大：商場＋美術館。小雨：神社、老街可短走。','岡山駅'],
+  ['倉敷雨天','大原美術館、常春藤廣場、Cafe Gewa、平翠軒。','倉敷川遊船遇雨可能體驗差，改成咖啡與選物。','大原美術館'],
+  ['岡山雨天','AEON MALL 岡山、杜之街 Grace、岡山站商店街。','後樂園如果雨太大就不要硬走，改岡山城＋室內。','杜の街グレース 岡山'],
+  ['姬路雨天','姬路站周邊與 Piole Himeji。','書寫山下雨不推薦硬上，山路與纜車體驗都會扣分。','姫路駅'],
+  ['自駕雨天','降低山線與展望台期待，早點抵達飯店。','雨天開車不要貪點，尤其銀波莊那天準時到比較重要。','赤穗溫泉 銀波莊']
+];
+const omiyageGroups=[
+  ['岡山白桃點心','白桃果凍、白桃夾心餅、白桃果醬。','機場、岡山站、AEON 都好買，送人安全。','岡山駅 お土産'],
+  ['晴王麝香葡萄點心','麝香葡萄果凍、葡萄餅乾、葡萄糖果。','岡山代表性很強，比一般零食有地方感。','岡山駅 お土産'],
+  ['吉備糰子','桃太郎系伴手禮基本款。','不要買太多，買有設計感的小盒裝比較好送。','廣榮堂 岡山駅'],
+  ['倉敷丹寧小物','丹寧杯墊、零錢包、手帕、吊飾。','比衣服好買，也比亂買餅乾更有記憶點。','倉敷デニムストリート'],
+  ['兒島丹寧','桃太郎 JEANS、BIG JOHN、小配件。','不一定要買褲子，小物也很有代表性。','児島ジーンズストリート']
+];
+const parkingGroups=[
+  ['岡山站周邊停車','先查飯店合作停車，再用 Times / 三井 Repark 備案。','岡山市區不要硬找免費車位，省時間比較重要。','岡山駅 駐車場'],
+  ['倉敷美觀地區停車','住 Dormy 倉敷時先以飯店停車為主。','美觀地區週末車位緊，早到比較穩。','倉敷美観地区 駐車場'],
+  ['姬路城停車','姬路城周邊有公營停車場，但平日也建議早點去。','先導航大手門停車場或姬路城周邊停車場。','姫路城 大手門駐車場'],
+  ['書寫山停車','導航到書寫山纜車停車場。','不要直接導航圓教寺，應該停纜車站附近再上山。','書写山ロープウェイ 駐車場'],
+  ['銀波莊停車','直接用銀波莊飯店停車。','15:00 前後抵達最舒服，不要晚上才摸進去。','赤穗溫泉 銀波莊 駐車場'],
+  ['兒島與鷲羽山停車','兒島用牛仔褲大街周邊停車，鷲羽山用展望台停車場。','夕陽日前往鷲羽山不要抓太緊。','鷲羽山展望台 駐車場']
+];
+const gasGroups=[
+  ['ETC 提醒','取車時確認 ETC 卡、車機、保險、還車油種。','上高速前確認卡有插好，不要到收費口才搞。','Nippon Rent-A-Car Okayama Station East Exit'],
+  ['加油原則','還車前在岡山市區或機場附近補滿油。','日本租車通常滿油還車，收據最好留著。','岡山空港 ガソリンスタンド'],
+  ['岡山市區加油','ENEOS、apollostation、Cosmo 都可以。','最後一天不要拖到機場才找，先在市區補。','岡山駅 ガソリンスタンド'],
+  ['兒島回岡山','如果油量低，兒島或岡山外圍先補。','不要看完夕陽很晚才焦慮找油。','児島 ガソリンスタンド'],
+  ['雨天自駕','拉長車距、少切小路、少跑山路。','導航時間要加 20～30% 緩衝。','岡山駅']
+];
+const sakeGroups=[
+  ['御前酒｜GOZENSHU','岡山代表銘柄之一，適合喝純米、菩提酛系列。','風格有米香與酸度，配海鮮、炸物都可以。','御前酒 岡山'],
+  ['嘉美心｜KAMIKOKORO','岡山淺口一帶酒造，名字很適合當旅遊記憶點。','可找純米吟釀或季節限定款。','嘉美心酒造'],
+  ['竹林｜CHIKURIN','丸本酒造銘柄，岡山酒米感很強。','想喝比較乾淨、米旨味明確的可以試。','丸本酒造 竹林'],
+  ['極聖｜KIWAMI HIJIRI','宮下酒造系，岡山市區較容易遇到。','可以順買獨步啤酒，酒造伴手禮感強。','酒工房 独歩館'],
+  ['酒一筋｜SAKE HITOSUJI','岡山赤磐酒造，雄町米很有代表性。','看到雄町純米或純米吟釀可以考慮。','酒一筋 岡山'],
+  ['多賀治｜TAGAJI','十八盛酒造，兒島附近代表銘柄。','去兒島丹寧日很搭，看到就可以試一杯。','十八盛酒造 多賀治'],
+  ['必記關鍵字｜雄町米','岡山是雄町米重鎮。','看到「備前雄町」「雄町」可以優先買，這比亂挑大吟釀更有地方性。','岡山 雄町 日本酒'],
+  ['哪裡買最穩','岡山站伴手禮區、AEON 岡山、酒工房 独歩館。','要喝現場可找岡山站周邊居酒屋問在地酒。','岡山駅 日本酒']
+];
+"""
+              s = s.replace('const days=[', insert+'\nconst days=[')
+              render = """
+document.getElementById('helperCards').innerHTML=group('今日備案','太累、太熱、行程爆掉時直接用','traffic',helperGroups)+group('雨天備案','下雨不要硬衝戶外，改室內與飯店節奏','traffic',rainGroups)+group('必買伴手禮','不含老婆購物清單，這是送人與地方代表物','order',omiyageGroups)+group('停車場資訊','自駕日先看這張，少浪費時間找車位','traffic',parkingGroups)+group('加油站 / ETC 提醒','還車前、上高速前、雨天開車前看一下','traffic',gasGroups);
+document.getElementById('sakeCards').innerHTML=group('岡山與瀨戶內清酒','看到這些銘柄可以優先喝，尤其雄町米','order',sakeGroups);
+"""
+              s = s.replace("document.getElementById('days').innerHTML=", render+"document.getElementById('days').innerHTML=")
+              s = s.replace('mobile.html?v=11','mobile.html?v=12')
+              s = s.replace('manifest.webmanifest?v=11','manifest.webmanifest?v=12')
+              s = s.replace('apple-touch-icon.png?v=11','apple-touch-icon.png?v=12')
+              s = s.replace('icon-192.png?v=11','icon-192.png?v=12')
+
+          Path('mobile.html').write_text(s)
+
+          idx = Path('index.html')
+          if idx.exists():
+              t = idx.read_text()
+              for v in ['v=11','v=10','v=9']:
+                  t = t.replace(v,'v=12')
+              idx.write_text(t)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile.html index.html
+          git commit -m "Add helper cards and local sake list" || exit 0
+          git push
