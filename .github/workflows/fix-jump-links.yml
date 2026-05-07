@@ -1,0 +1,67 @@
+name: Fix jump links opening cards
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index jump behavior
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          patch = r'''
+  function openTargetCard(id){
+    let el=document.getElementById(id);
+    let target=el;
+    if(id==='souvenirSake'){
+      target=document.querySelector('#souvenirSakeSec details') || el;
+    }
+    if(!target && el && el.nextElementSibling){
+      target=el.nextElementSibling.querySelector('details') || el;
+    }
+    if(!target) return;
+    if(target.tagName && target.tagName.toLowerCase()==='details') target.open=true;
+    let inner=target.querySelector && target.querySelector('details');
+    if(inner) inner.open=true;
+    document.querySelectorAll('details,.sec').forEach(x=>x.style.scrollMarginTop='72px');
+    target.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function setupJumpCards(){
+    document.querySelectorAll('.nav a[href^="#"]').forEach(a=>{
+      a.addEventListener('click',ev=>{
+        const id=a.getAttribute('href').slice(1);
+        if(!id) return;
+        ev.preventDefault();
+        history.replaceState(null,'','#'+id);
+        openTargetCard(id);
+      });
+    });
+    if(location.hash){
+      setTimeout(()=>openTargetCard(location.hash.slice(1)),180);
+    }
+  }
+  setTimeout(setupJumpCards,80);
+'''
+          if 'function openTargetCard' not in s:
+            s = s.replace('document.open();document.write(t);document.close();', 'document.open();document.write(t);document.close();\n'+patch)
+          # bump visible cache version in links if present
+          s = s.replace('?v=17','?v=18')
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix top nav to open target cards" || exit 0
+          git push
