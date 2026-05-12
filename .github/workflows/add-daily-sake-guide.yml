@@ -1,0 +1,78 @@
+name: Add daily sake guide
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch daily sake guide into index
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          if 'function addDailySakeGuide' not in s:
+              js=r'''
+  function addDailySakeGuide(){
+    const map=q=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+    const guide=[
+      ['倉敷站／美觀地區','おみやげ街道 倉敷 或 倉敷美觀地區酒販','買「燦然」或「御前酒」小瓶。第一晚先買一支回 Dormy 慢喝。','おみやげ街道 倉敷'],
+      ['倉敷站／美觀地區','おみやげ街道 倉敷 或 美觀地區伴手禮店','買「燦然 SANZEN」優先，想穩就買岡山雄町米系。','おみやげ街道 倉敷'],
+      ['岡山站','おみやげ街道 さんすて岡山','買「御前酒」「嘉美心」「竹林」其中一支。看到雄町米可優先。','おみやげ街道 さんすて岡山'],
+      ['岡山市區','酒工房 独歩館','今天直接去酒造，買「極聖」或岡山限定酒；也可買独歩啤酒。','酒工房 独歩館'],
+      ['姬路站／飯店附近','山陽百貨店 地下食品賣場 或 Piole 姬路伴手禮區','買姬路地酒「龍力」最對味，也可看播州一献、奥播磨。','山陽百貨店 姫路'],
+      ['赤穗／銀波莊沿線','奥藤酒造郷土館 或 赤穗市區酒販','買赤穗地酒「忠臣蔵」。到銀波莊後配海景慢喝。','奥藤酒造郷土館'],
+      ['備中高梁／岡山','白菊酒造 或 高梁市區物產店','買「大典白菊」。如果酒造不順，就回岡山站補買。','白菊酒造 高梁'],
+      ['兒島','十八盛酒造','買「多賀治」。開車日只能買，回岡山飯店再喝。','十八盛酒造'],
+      ['岡山站最後採買','おみやげ街道 さんすて岡山','補買御前酒、嘉美心、竹林、極聖、雄町米小瓶。','おみやげ街道 さんすて岡山']
+    ];
+    const st=document.createElement('style');
+    st.textContent='.sakeDaily{background:#fff8f2;border:1px solid #efd8bd;border-radius:14px;padding:10px;margin:8px 0;font-size:13px;line-height:1.45}.sakeDaily b{display:block;font-size:14px}.sakeDaily small{display:block;color:#6e6e73;margin:3px 0 7px;line-height:1.38}';
+    document.head.appendChild(st);
+    document.querySelectorAll('#days > details').forEach((d,i)=>{
+      const g=guide[i]; if(!g) return;
+      const body=d.querySelector('.body'), hotel=d.querySelector('.hotel');
+      if(body && hotel && !body.querySelector('.sakeDaily')){
+        hotel.insertAdjacentHTML('afterend','<div class="sakeDaily"><b>今晚當地清酒｜'+g[0]+'</b><small><b>購買點：</b>'+g[1]+'<br><b>建議買：</b>'+g[2]+'</small><a class="btn" target="_blank" href="'+map(g[3])+'">買酒導航</a></div>');
+      }
+    });
+    const d7=document.getElementById('d7');
+    if(d7){
+      const h=d7.querySelector('.head h2'); if(h) h.textContent='備中松山城山城日';
+      const sub=d7.querySelector('.head p'); if(sub) sub.textContent='赤穗 → 備中高梁 → 岡山｜約 3～4 小時';
+      const backup=d7.querySelector('.backup div'); if(backup) backup.innerHTML='今日備案：備中松山城太累就改高梁市區短停，早點回岡山。<br>雨天備案：取消備中松山城，直接回岡山 AEON 或飯店泡湯。';
+      const box=d7.querySelector('.box');
+      if(box && box.innerHTML.includes('牛窓')){
+        box.innerHTML=box.innerHTML.replace(/<div class="item"><span class="time">11:30 → 12:40[\s\S]*?牛窓 海鮮 レストラン[\s\S]*?<\/div>/,'<div class="item"><span class="time">12:00 → 12:50</span><b>高梁市區午餐</b><small>簡單吃，不要拖太久。</small><a class="btn dark" target="_blank" href="'+map('備中高梁駅 レストラン')+'">導航</a></div>');
+        box.innerHTML=box.innerHTML.replace(/<div class="item"><span class="time">13:00 → 14:30[\s\S]*?牛窓オリーブ園[\s\S]*?<\/div>/,'<div class="item"><span class="time">13:10 → 15:30</span><b>備中松山城</b><small>山城重點行程，停車後依現場指示上山。</small><a class="btn" target="_blank" href="'+map('備中松山城')+'">導航</a></div>');
+      }
+      const parking=d7.querySelector('.parking');
+      if(parking && parking.innerHTML.includes('牛窓オリーブ園')){
+        parking.innerHTML=parking.innerHTML.replace(/<div class="item"><b>牛窓オリーブ園 駐車場[\s\S]*?牛窓オリーブ園 駐車場[\s\S]*?<\/div>/,'<div class="item"><b>城見橋公園駐車場</b><small>備中松山城建議停這裡，依現場指示接駁或步行上山。</small><a class="btn" target="_blank" href="'+map('城見橋公園駐車場')+'">導航</a></div>');
+      }
+    }
+  }
+  setTimeout(addDailySakeGuide,300);
+'''
+              s=s.replace('document.open();document.write(t);document.close();','document.open();document.write(t);document.close();\n'+js)
+          s=s.replace('?v=19','?v=20')
+          s=s.replace('apple-touch-icon.png?v=19','apple-touch-icon.png?v=20')
+          s=s.replace('icon-192.png?v=19','icon-192.png?v=20')
+          s=s.replace('manifest.webmanifest?v=19','manifest.webmanifest?v=20')
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add daily sake guide and Bitchu Matsuyama day" || exit 0
+          git push
