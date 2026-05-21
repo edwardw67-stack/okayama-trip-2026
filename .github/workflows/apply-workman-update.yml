@@ -1,0 +1,41 @@
+name: Apply Workman itinerary update
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update 6/14 itinerary in index.html
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = "spots:[['09:45','10:20','Nippon岡山站東口','10:00取車。','Nippon Rent-A-Car Okayama Station East Exit'],['12:00','12:45','えきそば まねき 姬路站','快速午餐。','えきそば まねき 姫路駅','dark'],"
+          new = "spots:[['08:45','09:00','Hotel Abest Grande Okayama','退房，前往岡山站東口取車。','Hotel Abest Grande Okayama'],['09:00','09:25','Nippon岡山站東口','提早取車；建議前一天先確認可否提前。取車後先往岡山市東區。','Nippon Rent-A-Car Okayama Station East Exit'],['09:45','10:45','WORKMAN Plus 岡山平島店','自駕第一站。買雨衣、快乾衣、防水鞋襪、戶外小物；地址：〒709-0631 岡山県岡山市東区東平島1654-5。早上7:00開。','WORKMAN Plus 岡山平島店'],['12:00','12:45','えきそば まねき 姬路站','快速午餐。','えきそば まねき 姫路駅','dark'],"
+          if old not in s:
+              raise SystemExit('Target D5 itinerary block not found; aborting to avoid damaging index.html')
+          s = s.replace(old, new, 1)
+          s = s.replace('取車｜6/14 10:00 岡山站東口', '取車｜6/14 09:00 岡山站東口', 1)
+          s = s.replace("['03','Nippon Rent-A-Car 取車','6/14｜10:00｜岡山站東口','取車後直接開往姬路。','Nippon Rent-A-Car Okayama Station East Exit']", "['03','Nippon Rent-A-Car 取車','6/14｜09:00｜岡山站東口','提早取車，先去WORKMAN Plus岡山平島店，再開往姬路。','Nippon Rent-A-Car Okayama Station East Exit']", 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Update 6/14 Workman stop"
+          git push
