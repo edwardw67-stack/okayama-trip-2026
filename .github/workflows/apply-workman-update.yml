@@ -1,4 +1,4 @@
-name: Apply Workman itinerary update
+name: Apply itinerary app updates
 
 on:
   push:
@@ -9,24 +9,63 @@ permissions:
   contents: write
 
 jobs:
-  update-index:
+  update-itinerary:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Update 6/14 itinerary in index.html
+      - name: Patch Bitchu Matsuyama shuttle info
         run: |
           python3 <<'PY'
           from pathlib import Path
-          p = Path('index.html')
-          s = p.read_text(encoding='utf-8')
-          old = "spots:[['09:45','10:20','Nippon岡山站東口','10:00取車。','Nippon Rent-A-Car Okayama Station East Exit'],['12:00','12:45','えきそば まねき 姬路站','快速午餐。','えきそば まねき 姫路駅','dark'],"
-          new = "spots:[['08:45','09:00','Hotel Abest Grande Okayama','退房，前往岡山站東口取車。','Hotel Abest Grande Okayama'],['09:00','09:25','Nippon岡山站東口','提早取車；建議前一天先確認可否提前。取車後先往岡山市東區。','Nippon Rent-A-Car Okayama Station East Exit'],['09:45','10:45','WORKMAN Plus 岡山平島店','自駕第一站。買雨衣、快乾衣、防水鞋襪、戶外小物；地址：〒709-0631 岡山県岡山市東区東平島1654-5。早上7:00開。','WORKMAN Plus 岡山平島店'],['12:00','12:45','えきそば まねき 姬路站','快速午餐。','えきそば まねき 姫路駅','dark'],"
-          if old not in s:
-              raise SystemExit('Target D5 itinerary block not found; aborting to avoid damaging index.html')
-          s = s.replace(old, new, 1)
-          s = s.replace('取車｜6/14 10:00 岡山站東口', '取車｜6/14 09:00 岡山站東口', 1)
-          s = s.replace("['03','Nippon Rent-A-Car 取車','6/14｜10:00｜岡山站東口','取車後直接開往姬路。','Nippon Rent-A-Car Okayama Station East Exit']", "['03','Nippon Rent-A-Car 取車','6/14｜09:00｜岡山站東口','提早取車，先去WORKMAN Plus岡山平島店，再開往姬路。','Nippon Rent-A-Car Okayama Station East Exit']", 1)
-          p.write_text(s, encoding='utf-8')
+          import re
+
+          VERSION='40'
+          index_parking="[['城見橋公園駐車場（5合目）','導航點設這裡。接駁車運行日一般車不可開往ふいご峠，停車後轉乘登城整理巴士。','城見橋公園駐車場 備中松山城'],['登城整理巴士','城見橋（5合目）⇔ふいご峠（8合目）。8:45始發，4～9月上山末班16:30、下山末班17:45；約15分鐘一班（00/15/30/45循環）；大人500円、小中學生200円，往返制無單程票。','城見橋公園駐車場 備中松山城'],['ふいご峠駐車場（8合目）','接駁車停駛日才可自駕上來。ふいご峠下車或停車後，步行約20分鐘到天守；照現場警備員指示。','ふいご峠駐車場']]"
+          index_spots="[['10:00','10:10','銀波莊退房','退房後直接開往備中高梁，不繞赤穗市區。','赤穗溫泉 銀波莊'],['10:10','12:20','赤穗 → 城見橋公園駐車場','導航目的地設城見橋公園駐車場，不要直接設天守或山上道路。','城見橋公園駐車場 備中松山城'],['12:20','12:35','城見橋公園駐車場（5合目）','停車、上廁所、買票排隊。接駁車約15分鐘一班，車程約5分鐘。','城見橋公園駐車場 備中松山城'],['12:35','12:45','登城整理巴士：城見橋 → ふいご峠','上山末班16:30，不要拖太晚。票價大人500円、小中學生200円，無單程票。','城見橋公園駐車場 備中松山城'],['12:45','13:10','ふいご峠 → 備中松山城天守','下車後走山路約20分鐘到天守，穿好走的鞋。','備中松山城'],['13:10','14:10','備中松山城','現存天守山城，重點看天守、石垣與山城視野。','備中松山城'],['14:10','14:35','下山回城見橋公園駐車場','下山末班17:45，但不要壓末班。','城見橋公園駐車場 備中松山城'],['15:15','16:40','城見橋公園駐車場 → Dormy Inn 岡山','回岡山入住最後兩晚。','Dormy Inn Okayama'],['17:00','17:30','Dormy Inn 岡山','Check-in、泡湯休息。','Dormy Inn Okayama']]"
+          daily_see="[L('城見橋公園駐車場（導航點）','城見橋公園駐車場 備中松山城'),L('登城整理巴士乘車處','城見橋公園駐車場 備中松山城'),L('ふいご峠（8合目）','ふいご峠駐車場'),L('備中松山城','備中松山城')]"
+          daily_sake="[['大典白菊','備中高梁代表酒。順路才買，不順就回岡山補。','白菊酒造 高梁'],['御前酒補買','高梁不順就回岡山站買。','おみやげ街道 晴れの国 岡山駅'],['接駁車重點','4～9月：8:45始發，上山末班16:30，下山末班17:45。約15分鐘一班（00/15/30/45循環）。大人500円，小中學生200円，往返制無單程票。','城見橋公園駐車場 備中松山城']]"
+
+          def bracket_end(text, start):
+              depth=0; quote=None; esc=False
+              for i in range(start, len(text)):
+                  c=text[i]
+                  if quote:
+                      if esc: esc=False
+                      elif c=='\\': esc=True
+                      elif c==quote: quote=None
+                  else:
+                      if c in "'\"`": quote=c
+                      elif c=='[': depth+=1
+                      elif c==']':
+                          depth-=1
+                          if depth==0: return i+1
+              raise ValueError('bracket not closed')
+
+          def day_block(text, marker, next_marker):
+              a=text.index(marker); b=text.index(next_marker,a); return a,b
+          def replace_prop(block, prop, value):
+              i=block.index(prop+':'); j=block.index('[',i); k=bracket_end(block,j); return block[:j]+value+block[k:]
+          def replace_day_props(text, marker, next_marker, updates):
+              a,b=day_block(text,marker,next_marker); block=text[a:b]
+              for prop,value in updates.items(): block=replace_prop(block,prop,value)
+              return text[:a]+block+text[b:]
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=replace_day_props(s,"{n:'07'",",{n:'08'",{'parking':index_parking,'spots':index_spots})
+          s=s.replace("sub:'赤穗 → 備中高梁 → 岡山｜住 Dormy Inn 岡山'","sub:'銀波莊 → 城見橋公園駐車場 → 備中松山城 → 岡山'")
+          s=s.replace('主頁靜態版。備中松山城與每日清酒購買指南已加入。','主頁靜態版。備中松山城接駁車、導航點與每日清酒購買指南已更新。')
+          s=re.sub(r'\?v=\d+',f'?v={VERSION}',s)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('daily-guide-collab.html')
+          s=p.read_text(encoding='utf-8')
+          s=replace_day_props(s,"{id:'d7'",",\n{id:'d8'",{'see':daily_see,'sake':daily_sake})
+          s=s.replace("sub:'赤穗 → 備中高梁 → 岡山｜住 Dormy Inn 岡山'","sub:'銀波莊 → 城見橋公園駐車場 → 備中松山城 → 岡山｜住 Dormy Inn 岡山'")
+          s=s.replace("rain:'雨天直接砍備中松山城。'","rain:'雨天、接駁臨時停駛或山路狀況差，就直接砍備中松山城回岡山。今天不要硬塞吹屋。'")
+          s=re.sub(r'\?v=\d+',f'?v={VERSION}',s)
+          p.write_text(s,encoding='utf-8')
           PY
       - name: Commit changes
         run: |
@@ -36,6 +75,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git commit -m "Update 6/14 Workman stop"
+          git add index.html daily-guide-collab.html
+          git commit -m "Update Bitchu Matsuyama shuttle info"
           git push
